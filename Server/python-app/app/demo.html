@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATMS 예측 모듈 - 데모</title>
+    <style>
+        /* ===== 공통 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Pretendard', 'Malgun Gothic', sans-serif;
+            background: #f0f4f8;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ===== 헤더 ===== */
+        header {
+            background: linear-gradient(90deg, #006400, #004080);
+            color: white;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        header h1 .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 400;
+        }
+        header .subtitle {
+            margin-left: auto;
+            font-size: 13px;
+            opacity: 0.85;
+        }
+
+        /* ===== 메뉴 탭 ===== */
+        .tab-bar {
+            background: #e6f2ff;
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #004080;
+        }
+        .tab-bar button {
+            padding: 10px 28px;
+            border: none;
+            background: transparent;
+            color: #004080;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-bar button:hover {
+            background: rgba(0,64,128,0.08);
+        }
+        .tab-bar button.active {
+            background: white;
+            border-bottom: 3px solid #006400;
+            color: #006400;
+        }
+
+        /* ===== 컨텐츠 ===== */
+        .content {
+            flex: 1;
+            padding: 20px 30px;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* ===== 검색 패널 ===== */
+        .search-panel {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            background: white;
+            padding: 12px 20px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+        }
+        .search-panel label {
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            white-space: nowrap;
+        }
+        .search-panel select,
+        .search-panel input[type="date"] {
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            min-width: 140px;
+        }
+        .search-panel .btn-group {
+            margin-left: auto;
+            display: flex;
+            gap: 8px;
+        }
+        .btn-predict {
+            background: #006400;
+            color: white;
+            border: none;
+            padding: 9px 22px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-predict:hover { background: #004080; }
+        .btn-predict:disabled {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        /* ===== 결과 영역 ===== */
+        .result-area { display: none; }
+        .result-area.show { display: block; }
+
+        /* 2단 레이아웃 */
+        .result-columns {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .col-left {
+            flex: 1;
+            min-width: 0;
+        }
+        .col-right {
+            width: 380px;
+            flex-shrink: 0;
+        }
+        .col-left .table-wrapper {
+            max-height: 420px;
+            overflow-y: auto;
+        }
+        .col-left .table-wrapper table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #004080;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: #006400;
+            border-radius: 2px;
+            display: inline-block;
+        }
+
+        /* 분석 카드 그리드 */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .stat-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 10px 12px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .stat-card .label {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        .stat-card .value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #004080;
+        }
+        .stat-card .unit {
+            font-size: 12px;
+            color: #888;
+            margin-left: 2px;
+        }
+        .stat-card.urgent .value { color: #d32f2f; }
+        .stat-card.warning .value { color: #f57c00; }
+        .stat-card.good .value { color: #388e3c; }
+
+        /* LLM 해석 카드 */
+        .llm-card {
+            background: linear-gradient(135deg, #f8fffe 0%, #f0f7ff 100%);
+            border: 1px solid #b8d4e3;
+            border-left: 4px solid #006400;
+            border-radius: 6px;
+            padding: 14px 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .llm-card .llm-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 700;
+            color: #006400;
+        }
+        .llm-card .llm-header .icon {
+            background: #006400;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+        }
+        .llm-card .llm-body {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-line;
+        }
+
+        /* 테이블 */
+        .table-wrapper {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table th, table td {
+            border: 1px solid #e0e0e0;
+            padding: 6px 8px;
+            text-align: center;
+            font-size: 12px;
+        }
+        table th {
+            background: #e6f2ff;
+            color: #004080;
+            font-weight: 600;
+        }
+        table tr:nth-child(even) { background: #f9fcff; }
+        table tr:hover { background: #f1f9ff; }
+
+        /* 로딩 */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-box {
+            background: white;
+            padding: 30px 50px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #006400;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 14px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-box p {
+            color: #333;
+            font-size: 14px;
+        }
+        .loading-box .elapsed {
+            color: #888;
+            font-size: 12px;
+            margin-top: 6px;
+        }
+
+        /* ATM 정보 바 */
+        .atm-info-bar {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 10px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            gap: 30px;
+            align-items: center;
+            font-size: 13px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .atm-info-bar .info-item {
+            display: flex;
+            gap: 6px;
+        }
+        .atm-info-bar .info-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .atm-info-bar .info-value {
+            color: #333;
+            font-weight: 700;
+        }
+
+        /* 에러 */
+        .error-msg {
+            background: #fff3f3;
+            border: 1px solid #e88;
+            color: #c33;
+            padding: 14px 20px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .error-msg.show { display: block; }
+    </style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<header>
+    <h1>
+        MG 새마을금고 ATMS
+        <span class="badge">LLM 예측 모듈</span>
+    </h1>
+    <span class="subtitle">On-Premise Qwen3 8B · FastAPI</span>
+</header>
+
+<!-- 탭 -->
+<div class="tab-bar">
+    <button class="active" onclick="switchTab('cash')">시재 예측</button>
+    <button onclick="switchTab('fault')">장애 예측</button>
+</div>
+
+<!-- 컨텐츠 -->
+<div class="content">
+
+    <!-- 검색 패널 -->
+    <div class="search-panel">
+        <label>금고</label>
+        <select id="selGroup" onchange="onGroupChange()">
+            <option value="">-- 선택 --</option>
+            <option value="00706">금빛</option>
+            <option value="00722">세종</option>
+            <option value="04460">춘천동부</option>
+        </select>
+
+        <label>기기</label>
+        <select id="selTerm">
+            <option value="">-- 선택 --</option>
+        </select>
+
+        <label>기준일자</label>
+        <input type="date" id="inputDate" value="2025-10-15">
+
+        <div class="btn-group">
+            <button class="btn-predict" onclick="doQuery()" style="background:#004080">조회</button>
+            <button class="btn-predict" id="btnPredict" onclick="doPredict()" disabled>AI 예측</button>
+        </div>
+    </div>
+
+    <!-- 에러 메시지 -->
+    <div class="error-msg" id="errorMsg"></div>
+
+    <!-- 결과 영역 -->
+    <div class="result-area" id="resultArea">
+        <!-- ATM 정보 바 -->
+        <div class="atm-info-bar" id="atmInfoBar"></div>
+
+        <!-- 2단 레이아웃 -->
+        <div class="result-columns">
+            <!-- 좌측: 조회 데이터 -->
+            <div class="col-left">
+                <div class="section-title">조회 데이터</div>
+                <div id="rawDataArea"></div>
+            </div>
+            <!-- 우측: 분석 + LLM -->
+            <div class="col-right">
+                <div class="section-title">분석 결과</div>
+                <div class="analysis-grid" id="analysisGrid"></div>
+                <div class="llm-card" id="llmCard" style="display:none">
+                    <div class="llm-header">
+                        <span class="icon">AI</span>
+                        LLM 분석 결과 (Qwen3 8B)
+                    </div>
+                    <div class="llm-body" id="llmBody">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 로딩 오버레이 -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-box">
+        <div class="spinner"></div>
+        <p>LLM이 분석 중입니다...</p>
+        <p class="elapsed" id="elapsedTime">경과: 0초</p>
+    </div>
+</div>
+
+<script>
+// ===== 설정 =====
+const API_BASE = '';
+
+const ATM_MAP = {
+    '00706': [{ id: '415', name: '415 (금빛북부 점외365)' }],
+    '00722': [
+        { id: '443', name: '443' },
+        { id: '446', name: '446' },
+        { id: '447', name: '447' },
+        { id: '405', name: '405' }
+    ],
+    '04460': [{ id: '437', name: '437 (본점 점두365)' }]
+};
+
+const ERR_GROUP_NAMES = {
+    "01": "CDM 장애", "02": "명세표부 장애", "04": "고객미숙",
+    "16": "명세표 회수함", "25": "기타", "33": "통신 장애",
+    "62": "카드부 장애", "71": "현금걸림", "73": "현금부족",
+    "78": "현금미수취", "81": "만원권 부족", "82": "오만원권 부족"
+};
+
+let currentTab = 'cash';
+let timerInterval = null;
+
+// ===== 탭 전환 =====
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-bar button').forEach((btn, i) => {
+        btn.classList.toggle('active', (i === 0 && tab === 'cash') || (i === 1 && tab === 'fault'));
+    });
+    document.getElementById('resultArea').classList.remove('show');
+    document.getElementById('llmCard').style.display = 'none';
+    document.getElementById('errorMsg').classList.remove('show');
+    document.getElementById('btnPredict').disabled = true;
+}
+
+// ===== 금고 변경 → 기기 목록 업데이트 =====
+function onGroupChange() {
+    const groupId = document.getElementById('selGroup').value;
+    const selTerm = document.getElementById('selTerm');
+    selTerm.innerHTML = '<option value="">-- 선택 --</option>';
+    if (ATM_MAP[groupId]) {
+        ATM_MAP[groupId].forEach(atm => {
+            const opt = document.createElement('option');
+            opt.value = atm.id;
+            opt.textContent = atm.name;
+            selTerm.appendChild(opt);
+        });
+        if (ATM_MAP[groupId].length === 1) selTerm.value = ATM_MAP[groupId][0].id;
+    }
+}
+
+// ===== 공통 파라미터 =====
+function getParams() {
+    const groupId = document.getElementById('selGroup').value;
+    const termId = document.getElementById('selTerm').value;
+    const dateVal = document.getElementById('inputDate').value;
+    if (!groupId || !termId) { showError('금고와 기기를 선택해주세요.'); return null; }
+    const baseDate = dateVal ? dateVal.replace(/-/g, '') : null;
+    const params = new URLSearchParams({ term_group_id: groupId, term_id: termId });
+    if (baseDate) params.append('base_date', baseDate);
+    return params;
+}
+
+// ===== 조회 (즉시 응답 - DB 조회 + Python 계산만) =====
+async function doQuery() {
+    const params = getParams();
+    if (!params) return;
+
+    const endpoint = currentTab === 'cash' ? '/api/v1/data/cash' : '/api/v1/data/fault';
+    document.getElementById('resultArea').classList.remove('show');
+    document.getElementById('llmCard').style.display = 'none';
+    document.getElementById('errorMsg').classList.remove('show');
+
+    try {
+        const resp = await fetch(`${endpoint}?${params}`, { method: 'POST' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data.error) { showError(data.error); return; }
+        renderQueryResult(data);
+        document.getElementById('btnPredict').disabled = false;
+    } catch (err) {
+        showError(`API 호출 실패: ${err.message}`);
+    }
+}
+
+// ===== AI 예측 (LLM 호출 - 1~3분 소요) =====
+async function doPredict() {
+    const params = getParams();
+    if (!params) return;
+
+    const endpoint = currentTab === 'cash' ? '/api/v1/predict/cash' : '/api/v1/predict/fault';
+    showLoading(true);
+
+    try {
+        const resp = await fetch(`${endpoint}?${params}`, { method: 'POST' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (data.error) { showError(data.error); return; }
+        document.getElementById('llmBody').innerHTML = renderMarkdown(data.llm_summary || '(LLM 응답 없음)');
+        document.getElementById('llmCard').style.display = '';
+    } catch (err) {
+        showError(`API 호출 실패: ${err.message}`);
+    } finally {
+        showLoading(false);
+    }
+}
+
+// ===== 조회 결과 렌더링 =====
+function renderQueryResult(data) {
+    const analysis = data.analysis || {};
+
+    // ATM 정보 바
+    document.getElementById('atmInfoBar').innerHTML = `
+        <div class="info-item"><span class="info-label">금고:</span><span class="info-value">${data.term_group_id}</span></div>
+        <div class="info-item"><span class="info-label">기번:</span><span class="info-value">${data.term_id}</span></div>
+        <div class="info-item"><span class="info-label">설치장소:</span><span class="info-value">${data.location || '정보없음'}</span></div>
+        <div class="info-item"><span class="info-label">분석기간:</span><span class="info-value">${analysis.period_days || '-'}일</span></div>
+    `;
+
+    if (currentTab === 'cash') {
+        renderCashRawData(data);
+        renderCashAnalysis(analysis);
+    } else {
+        renderFaultRawData(data);
+        renderFaultAnalysis(analysis);
+    }
+
+    document.getElementById('resultArea').classList.add('show');
+}
+
+// ===== 시재 원본 데이터 테이블 =====
+function renderCashRawData(data) {
+    let html = '';
+
+    // 일별 거래현황
+    const daily = data.daily_transactions || [];
+    if (daily.length) {
+        html += `<div class="table-wrapper"><table>
+            <thead><tr><th>일자</th><th>거래건수</th></tr></thead><tbody>`;
+        daily.forEach(r => {
+            html += `<tr><td>${formatDate(r.BASE_DATE)}</td><td>${r.TRANSACTION_CNT || 0}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    // 시재 투입내역
+    const addcash = data.addcash_history || [];
+    if (addcash.length) {
+        html += `<div class="table-wrapper"><table>
+            <thead><tr><th>투입일</th><th>카세트</th><th>권종</th><th>투입량</th><th>잔량</th></tr></thead><tbody>`;
+        addcash.forEach(r => {
+            const denom = String(r.DENOM_CD).includes('50000') ? '오만원' : '만원';
+            html += `<tr><td>${formatDate(r.JNL_DATE)}</td><td>${r.CASSETTE_NO}</td><td>${denom}</td><td>${r.ADD_CNT}</td><td>${r.REMAIN_CNT}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    if (!html) html = '<p style="color:#888;padding:10px">조회 데이터 없음</p>';
+    document.getElementById('rawDataArea').innerHTML = html;
+}
+
+// ===== 장애 원본 데이터 테이블 =====
+function renderFaultRawData(data) {
+    let html = '';
+
+    // 장애 이력
+    const faults = data.fault_history || [];
+    if (faults.length) {
+        html += `<div class="table-wrapper"><table>
+            <thead><tr><th>일자</th><th>장애유형</th><th>건수</th><th>장애시간(초)</th></tr></thead><tbody>`;
+        faults.forEach(r => {
+            const name = ERR_GROUP_NAMES[r.ERR_GROUP_CD] || '기타(' + r.ERR_GROUP_CD + ')';
+            html += `<tr><td>${formatDate(r.BASE_DATE)}</td><td>${name}</td><td>${r.FAULT_CNT || 0}</td><td>${r.FAULT_TIME || 0}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    // 가동률 현황
+    const runs = data.run_history || [];
+    if (runs.length) {
+        html += `<div class="table-wrapper"><table>
+            <thead><tr><th>일자</th><th>가동시간</th><th>목표시간</th><th>가동률</th><th>거래건수</th></tr></thead><tbody>`;
+        runs.forEach(r => {
+            const rate = r.TOTAL_TARGET_TIME > 0 ? ((r.TOTAL_RUN_TIME / r.TOTAL_TARGET_TIME) * 100).toFixed(1) + '%' : '-';
+            html += `<tr><td>${formatDate(r.BASE_DATE)}</td><td>${r.TOTAL_RUN_TIME}</td><td>${r.TOTAL_TARGET_TIME}</td><td>${rate}</td><td>${r.TRANSACTION_CNT || 0}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    if (!html) html = '<p style="color:#888;padding:10px">조회 데이터 없음</p>';
+    document.getElementById('rawDataArea').innerHTML = html;
+}
+
+// ===== 시재 분석 카드 =====
+function renderCashAnalysis(a) {
+    const d10 = a.days_until_empty_10000 || 99;
+    let urgClass = 'good', urgText = '양호';
+    if (d10 <= 1) { urgClass = 'urgent'; urgText = '긴급'; }
+    else if (d10 <= 3) { urgClass = 'warning'; urgText = '주의'; }
+
+    document.getElementById('analysisGrid').innerHTML = `
+        <div class="stat-card ${urgClass}"><div class="label">보충 긴급도</div><div class="value">${urgText}</div></div>
+        <div class="stat-card"><div class="label">일평균 거래</div><div class="value">${a.avg_daily_tx}<span class="unit">건</span></div></div>
+        <div class="stat-card"><div class="label">만원권 잔량</div><div class="value">${a.stock_10000}<span class="unit">장</span></div></div>
+        <div class="stat-card"><div class="label">오만원권 잔량</div><div class="value">${a.stock_50000}<span class="unit">장</span></div></div>
+        <div class="stat-card ${d10 <= 3 ? 'warning' : ''}"><div class="label">만원권 소진 예상</div><div class="value">${a.days_until_empty_10000}<span class="unit">일</span></div></div>
+        <div class="stat-card"><div class="label">오만원권 소진 예상</div><div class="value">${a.days_until_empty_50000}<span class="unit">일</span></div></div>
+        <div class="stat-card"><div class="label">최대 일 거래</div><div class="value">${a.max_daily_tx}<span class="unit">건</span></div></div>
+        <div class="stat-card"><div class="label">마지막 투입일</div><div class="value" style="font-size:15px">${formatDate(a.last_addcash_date)}</div></div>
+    `;
+}
+
+// ===== 장애 분석 카드 =====
+function renderFaultAnalysis(a) {
+    const total = a.total_faults || 0;
+    let riskClass = 'good', riskText = '낮음';
+    if (total >= 10) { riskClass = 'urgent'; riskText = '높음'; }
+    else if (total >= 3) { riskClass = 'warning'; riskText = '보통'; }
+
+    document.getElementById('analysisGrid').innerHTML = `
+        <div class="stat-card ${riskClass}"><div class="label">장애 위험도</div><div class="value">${riskText}</div></div>
+        <div class="stat-card"><div class="label">총 장애 건수</div><div class="value">${a.total_faults}<span class="unit">건</span></div></div>
+        <div class="stat-card"><div class="label">최다 장애유형</div><div class="value" style="font-size:15px">${a.top_fault_type}</div></div>
+        <div class="stat-card"><div class="label">장애 추세</div><div class="value ${a.fault_trend === '증가' ? 'urgent' : ''}" style="font-size:18px">${a.fault_trend}</div></div>
+        <div class="stat-card"><div class="label">평균 가동률</div><div class="value">${a.avg_run_rate}<span class="unit">%</span></div></div>
+        <div class="stat-card"><div class="label">현재 상태</div><div class="value" style="font-size:13px">${a.recent_status}</div></div>
+    `;
+}
+
+// ===== 유틸 =====
+function renderMarkdown(text) {
+    let s = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    s = s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+    s = s.replace(/\*(.+?)\*/g, '<i>$1</i>');
+    s = s.replace(/\n/g, '<br>');
+    return s;
+}
+
+function formatDate(d) {
+    if (!d || d === '정보없음') return '정보없음';
+    if (typeof d === 'string' && d.length === 8) return `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}`;
+    return d;
+}
+
+function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+}
+
+function showLoading(on) {
+    const overlay = document.getElementById('loadingOverlay');
+    const elapsedEl = document.getElementById('elapsedTime');
+    if (on) {
+        overlay.classList.add('show');
+        let sec = 0;
+        elapsedEl.textContent = '경과: 0초';
+        timerInterval = setInterval(() => {
+            sec++;
+            const min = Math.floor(sec / 60);
+            const s = sec % 60;
+            elapsedEl.textContent = min > 0 ? `경과: ${min}분 ${s}초` : `경과: ${s}초`;
+        }, 1000);
+    } else {
+        overlay.classList.remove('show');
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    }
+}
+</script>
+</body>
+</html>

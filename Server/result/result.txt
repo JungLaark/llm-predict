@@ -1,0 +1,16 @@
+
+[atec@ap-server atms-predict]$ time curl -X POST "http://localhost:8500/api/v1/predict/fault?term_group_id=00706&term_id=415&base_date=20250815"
+{"term_group_id":"00706","term_id":"415","location":null,"analysis":{"term_id":"415","location":null,"period_days":30,"total_faults":9,"fault_summary":"현금미수취 5건, 현금걸림 2건, 현금부족 1건, 오만원권 부족 1건","top_fault_type":"현금미수취","fault_trend":"증가","avg_run_rate":12.9,"recent_status":"ATM: 장애중, 만원권: 알 수 없음"},"llm_summary":"1) 장애 위험도는 **높음**  \n2) 가장 주의해야 할 장애유형은 **현금미수취**로, 5건 발생하며 추세가 증가 중이므로 고객 불만과 운영 손실이 클 수 있음  \n3) 권장 예방 조치는 **현금 미수취 예방을 위한 정기 점검 및 현금 보충 시스템 점검** 권장"}
+real    2m26.153s
+user    0m0.007s
+sys     0m0.029s
+[atec@ap-server atms-predict]$
+
+
+//시재
+
+[atec@ap-server atms-predict]$ time curl -s -X POST "http://localhost:8500/api/v1/predict/cash?term_group_id=00706&term_id=415&base_date=20250814"
+{"term_group_id":"00706","term_id":"415","location":null,"analysis":{"term_id":"415","location":null,"period_days":7,"avg_daily_tx":8.7,"max_daily_tx":188,"min_daily_tx":0,"stock_10000":160,"stock_50000":31,"days_until_empty_10000":18.4,"days_until_empty_50000":11.9,"last_addcash_date":"20250917"},"llm_summary":"1) 주의  \n2) 2025년 10월 10일까지  \n3) 만원권 200장, 오만원권 50장 권장"}
+real    1m45.495s
+user    0m0.010s
+sys     0m0.021s
