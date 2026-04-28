@@ -1,5 +1,3 @@
-# ㄹ
-
 import os
 from fastapi import FastAPI
 import httpx
